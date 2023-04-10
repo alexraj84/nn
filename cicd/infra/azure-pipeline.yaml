@@ -1,0 +1,87 @@
+trigger: none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  backendSub: 'reg-dev-eu-kyccdddatapointengine (SPN)'  # service principle of the subscription
+  backendRG: 'rg-datapoint-engine-dev-0002'             # resource group of the backend storage account
+  backendStrg: 'kycdpeweudev01'                         # storage account name where the terraform state file will be residing
+  backendContr: 'rabo-for-pect'                         # container name to place the state file
+  backendStrgKey: 'Eqis/fYRfQDdbOoaU/SCLz10Eem9ve/3P0o6gfTASnlGBTimjmC88FWjd5uNGoiumxeQF9Y/aUqL+ASteKRR8g=='  # storage access key
+  terraDir: 'cicd/infra/terraform'
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: validate
+        continueOnError: false
+
+        steps:
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '0.14.4'
+
+          - task: TerraformTaskV3@0
+            displayName: 'tf init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraDir)'
+              backendServiceArm: '$(backendSub)'
+              backendAzureRmResourceGroupName: '$(backendRG)'
+              backendAzureRmStorageAccountName: '$(backendStrg)'
+              backendAzureRmContainerName: '$(backendContr)'
+              backendAzureRmKey: '$(backendStrgKey)'
+
+          - task: TerraformTaskV3@0
+            displayName: 'tf validate'
+            inputs:
+              provider: 'azurerm'
+              command: 'validate'
+
+          - task: TerraformTaskV2@2
+            displayName: 'tf plan'
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraDir)'
+              commandOptions: "--var-file=dev.tfvars --out=tfplan"
+              environmentServiceNameAzureRM: '$(backendSub)'
+
+  - stage: Dev
+    condition: succeeded('validate')
+    dependsOn: validate
+    jobs:
+      - job: Deploy
+        steps:
+
+          - checkout: self
+
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '0.14.4'
+
+          - task: TerraformTaskV3@0
+            displayName: 'tf init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraDir)'
+              backendServiceArm: '$(backendSub)'
+              backendAzureRmResourceGroupName: '$(backendRG)'
+              backendAzureRmStorageAccountName: '$(backendStrg)'
+              backendAzureRmContainerName: '$(backendContr)'
+              backendAzureRmKey: '$(backendStrgKey)'
+
+          - task: TerraformTaskV3@0
+            displayName: 'tf apply'
+            inputs:
+              terraformFile: './$(terraDir)/main.tf'
+              provider: 'azurerm'
+              command: 'apply'
+              commandOptions: '--var-file=dev.tfvars'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(terraDir)'
+              environmentServiceNameAzureRM: '$(backendSub)'

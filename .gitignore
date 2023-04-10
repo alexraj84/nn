@@ -1,0 +1,5 @@
+*//.gitignore/*
+**/.idea/*
+**/.terraform/*
+
+*.tfvars.json

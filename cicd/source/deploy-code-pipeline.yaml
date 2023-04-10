@@ -1,0 +1,70 @@
+trigger: none                       # add main or master to trigger your devops pipeline automatically when a merge is detected
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  target: '$(Build.ArtifactStagingDirectory)/'
+  artifact: 'docker'
+  WorkingDir: $(System.DefaultWorkingDirectory)/
+  dockerImage: 'myapp'                                      # nice to provide this from pipeline run time variable
+  sourceDir: 'cicd/source/main/app'                         # nice to provide this from pipeline run time variable
+  dockerSerCon: 'sc-dev-acr'          #!!! Devops service connection specific for Docker registry. See Readme.md
+
+stages:
+  - stage: build
+    jobs:
+      - job: build
+        steps:
+#         # Copy files to the staging artifact dir
+          - task: CopyFiles@2
+            displayName: copy files
+            inputs:
+              SourceFolder: '$(WorkingDir)/'
+              Contents: |
+                **/$(sourceDir)/**
+              TargetFolder: '$(target)'
+          # Publish Artifacts
+          - task: PublishBuildArtifacts@1
+            displayName: publish artifacts
+            inputs:
+              targetPath: '$(target)'
+              artifactName: '$(artifact)'
+
+  - stage: dev
+    # Deploy the code to the Dev env
+    condition: 'succeeded()'
+    dependsOn: 'build'
+    jobs:
+      - job: deploy
+        steps:
+          # Download Artifacts
+          - task: DownloadBuildArtifacts@0
+            displayName: 'Download artifact'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: '$(artifact)'
+              downloadPath: '$(target)'
+
+          # Build the docker image available in the local
+          - task: Docker@2
+            displayName: 'Build Docker image'
+            inputs:
+              command: 'build'
+              containerRegistry: 'sc-dev-acr'
+              repository: '$(dockerImage)'              # docker image name
+              dockerfile: '$(target)/$(artifact)/$(sourceDir)/Dockerfile'
+              tags: 'latest'
+
+          # push the docker image
+          - task: Docker@2
+            displayName: 'Push Docker'
+            inputs:
+              command: push
+              repository: '$(dockerImage)'
+              containerRegistry: '$(dockerSerCon)'
+              tags: 'latest'
+
+#### Add multiple stages to deploy the code to test/stage and or prod environment. Just create dependencies. Ensure to add an approval task
+#### for the Prod environment to avoid code deployment without approval
