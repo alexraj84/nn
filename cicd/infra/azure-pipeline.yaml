@@ -4,11 +4,11 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  backendSub: 'reg-dev-eu-kyccdddatapointengine (SPN)'  # service principle of the subscription
-  backendRG: 'rg-datapoint-engine-dev-0002'             # resource group of the backend storage account
-  backendStrg: 'kycdpeweudev01'                         # storage account name where the terraform state file will be residing
-  backendContr: 'rabo-for-pect'                         # container name to place the state file
-  backendStrgKey: 'Eqis/fYRfQDdbOoaU/SCLz10Eem9ve/3P0o6gfTASnlGBTimjmC88FWjd5uNGoiumxeQF9Y/aUqL+ASteKRR8g=='  # storage access key
+  backendSub: '<>'  # service principle of the subscription
+  backendRG: '<>'             # resource group of the backend storage account
+  backendStrg: '<>'                         # storage account name where the terraform state file will be residing
+  backendContr: '<>'                         # container name to place the state file
+  backendStrgKey: '<>'  # storage access key
   terraDir: 'cicd/infra/terraform'
 
 stages:
